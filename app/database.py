@@ -3,7 +3,8 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = Path(os.environ.get("DB_PATH", "kohvilogi.db"))
+DB_PATH = Path("/app/data/kohvilogi.db")
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def get_db():
