@@ -138,8 +138,8 @@
     <!-- Stats bar -->
     <div class="stats-bar">
         <div><div class="num" id="stat-countries">·</div><div class="lbl">riiki</div></div>
-        <div><div class="num" id="stat-drinks">·</div><div class="lbl">kohvi</div></div>
-        <div><div class="num" id="stat-locations">·</div><div class="lbl">kohta</div></div>
+        <div><div class="num" id="stat-streak">·</div><div class="lbl">streak</div></div>
+        <div><div class="num" id="stat-progress">·</div><div class="lbl">maailmast</div></div>
     </div>
 
     <!-- Layer toggles -->
@@ -325,7 +325,6 @@
         .then(r => r.json())
         .then(data => {
             document.getElementById('stat-countries').textContent = data.total_countries || 0;
-            document.getElementById('stat-drinks').textContent = data.total_drinks || 0;
 
             const allMarkers = [];
             const uniqueLocations = new Set();
@@ -393,6 +392,15 @@
             } else {
                 listEl.innerHTML = '<p class="text-gray-500 text-center py-4">Veel pole kohvi maailmas juuaud.<br><span style="font-size:12px">Kliki kaardil või lisa kohv!</span></p>';
             }
+
+            // Stats bar
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(s => {
+                    document.getElementById('stat-streak').textContent = s.streak || 0;
+                    document.getElementById('stat-progress').textContent = (s.world_progress || 0) + '%';
+                })
+                .catch(() => {});
         })
         .catch(err => console.error('Failed:', err));
 

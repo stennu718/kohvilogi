@@ -209,6 +209,65 @@ async def manifest():
     }
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "app": "kohvilogi", "version": "0.2.0"}
+
+
+@app.get("/api/stats")
+async def api_stats():
+    """Quick stats for the dashboard: streak, totals, progress."""
+    from app.database import get_db
+    from datetime import date, timedelta
+
+    conn = get_db()
+
+    # Streak: consecutive days with at least one coffee
+    streak = 0
+    check_date = date.today()
+    while True:
+        rows = conn.execute(
+            "SELECT COUNT(*) as cnt FROM expenses WHERE date = ?",
+            (check_date.strftime("%Y-%m-%d"),)
+        ).fetchone()
+        if rows and rows["cnt"] > 0:
+            streak += 1
+            check_date -= timedelta(days=1)
+        else:
+            break
+
+    # Total drinks
+    total = conn.execute("SELECT COUNT(*) as cnt FROM expenses").fetchone()["cnt"]
+
+    # Unique countries
+    countries = conn.execute(
+        "SELECT COUNT(DISTINCT country) as cnt FROM expenses WHERE country != ''"
+    ).fetchone()["cnt"]
+
+    # Days since first drink
+    first = conn.execute("SELECT MIN(date) as d FROM expenses").fetchone()["d"]
+    days_since = None
+    if first:
+        days_since = (date.today() - date.fromisoformat(first)).days + 1
+
+    # This week
+    week_start = (date.today() - timedelta(days=date.today().weekday())).strftime("%Y-%m-%d")
+    week_drinks = conn.execute(
+        "SELECT COUNT(*) as cnt FROM expenses WHERE date >= ?", (week_start,)
+    ).fetchone()["cnt"]
+
+    conn.close()
+
+    return {
+        "streak": streak,
+        "total_drinks": total,
+        "unique_countries": countries,
+        "days_since_first": days_since,
+        "week_drinks": week_drinks,
+        "world_progress": round(countries / 195 * 100, 1) if countries else 0,
+    }
+
+
 @app.get("/sw.js", response_class=HTMLResponse)
 async def service_worker():
     js = """
