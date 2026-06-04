@@ -30,91 +30,136 @@
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
     <div class="max-w-md mx-auto p-4">
-        <h1 class="text-2xl font-bold text-center mb-6">☕ Kohvilogi</h1>
-
-        <!-- Today's total -->
-        <div class="bg-gray-800 rounded-xl p-4 mb-6 text-center">
-            <p class="text-gray-400 text-sm">Täna kokku</p>
-            {% if totals %}
-                {% for currency, total in totals.items() %}
-                <p class="text-2xl font-bold text-emerald-400">{{ "%.2f"|format(total) }} {{ currency }}</p>
-                {% endfor %}
-            {% else %}
-                <p class="text-2xl font-bold text-gray-500">0.00 €</p>
-            {% endif %}
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-xl font-bold">☕ Kohvilogi</h1>
+            <div class="flex gap-2">
+                <a href="/stats" class="text-gray-400 hover:text-emerald-400 text-sm">📊</a>
+                <a href="/map" class="text-gray-400 hover:text-emerald-400 text-sm">🗺️</a>
+            </div>
         </div>
 
-        <!-- Add form -->
-        <form method="post" action="/add" class="bg-gray-800 rounded-xl p-4 mb-6 space-y-3">
-            <select name="coffee_type" required
-                class="w-full bg-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="" disabled selected>Vali kohvi tüüp</option>
-                {% for ct in coffee_types %}
-                <option value="{{ ct }}">{{ ct }}</option>
-                {% endfor %}
-            </select>
-            <div class="flex gap-2">
-                <input type="text" name="amount" placeholder="3.50" required pattern="[0-9]+([,.][0-9]+)?"
-                    class="flex-1 bg-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <select name="currency" class="bg-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    {% for code, symbol in currencies %}
-                    <option value="{{ code }}" {% if code == 'EUR' %}selected{% endif %}>{{ code }}</option>
+        <!-- Quick stats -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="bg-gray-800 rounded-xl p-3 text-center border border-gray-700">
+                <p class="text-emerald-400 font-bold text-lg">{{ total_drinks }}</p>
+                <p class="text-gray-500 text-xs">kohvi</p>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-3 text-center border border-gray-700">
+                <p class="text-emerald-400 font-bold text-lg">{{ unique_countries }}</p>
+                <p class="text-gray-500 text-xs">riiki</p>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-3 text-center border border-gray-700">
+                {% if totals %}
+                    {% for currency, total in totals.items() %}
+                    <p class="text-emerald-400 font-bold text-lg">{{ "%.1f"|format(total) }}</p>
+                    <p class="text-gray-500 text-xs">{{ currency }} täna</p>
                     {% endfor %}
-                </select>
+                {% else %}
+                    <p class="text-gray-500 font-bold text-lg">—</p>
+                    <p class="text-gray-500 text-xs">täna</p>
+                {% endif %}
             </div>
-            <div class="flex gap-2">
-                <input type="text" name="location" placeholder="Linn/koht (nt Zürich)" list="location-list"
-                    class="flex-1 bg-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <input type="text" name="country" placeholder="Riik (nt CH)" list="country-list" maxlength="2"
-                    class="w-20 bg-gray-700 rounded-lg px-3 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase">
+        </div>
+
+        <!-- Add form (collapsible) -->
+        <details class="bg-gray-800 rounded-xl border border-gray-700 mb-4" {% if not expenses %}open{% endif %}>
+            <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-emerald-400 select-none flex items-center justify-between">
+                <span>➕ Lisa kohv</span>
+            </summary>
+            <div class="px-4 pb-4">
+                <form method="post" action="/add" class="space-y-3">
+                    <select name="coffee_type" required
+                        class="w-full bg-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="" disabled selected>Vali kohvi tüüp</option>
+                        {% for ct in coffee_types %}
+                        <option value="{{ ct }}">{{ ct }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="flex gap-2">
+                        <input type="text" name="amount" placeholder="3.50" required pattern="[0-9]+([,.][0-9]+)?"
+                            class="flex-1 bg-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <select name="currency" class="bg-gray-700 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            {% for code, symbol in currencies %}
+                            <option value="{{ code }}" {% if code == 'EUR' %}selected{% endif %}>{{ code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" name="location" placeholder="Linn/koht" list="location-list"
+                            class="flex-1 bg-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <input type="text" name="country" placeholder="Riik" list="country-list" maxlength="2"
+                            class="w-20 bg-gray-700 rounded-lg px-3 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase">
+                    </div>
+                    <datalist id="country-list">
+                        {% for code, name, flag in countries %}
+                        <option value="{{ code }}">{{ flag }} {{ name }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <datalist id="location-list"></datalist>
+                    <input type="hidden" name="latitude" id="latitude" value="0">
+                    <input type="hidden" name="longitude" id="longitude" value="0">
+                    <input type="text" name="notes" placeholder="Märkmed (valikuline)"
+                        class="w-full bg-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-lg py-2.5 font-semibold transition">Lisa ☕</button>
+                </form>
             </div>
-            <datalist id="country-list">
-                {% for code, name, flag in countries %}
-                <option value="{{ code }}">{{ flag }} {{ name }}</option>
-                {% endfor %}
-            </datalist>
-            <datalist id="location-list"></datalist>
-            <input type="hidden" name="latitude" id="latitude" value="0">
-            <input type="hidden" name="longitude" id="longitude" value="0">
-            <input type="text" name="notes" placeholder="Märkmed (valikuline)"
-                class="w-full bg-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-lg py-2.5 font-semibold transition">Lisa ☕</button>
-        </form>
+        </details>
 
         <!-- Today's expenses -->
-        <h2 class="text-lg font-semibold mb-3">Täna</h2>
         {% if expenses %}
-        <div class="space-y-2 mb-6">
+        <h2 class="text-sm font-semibold text-gray-400 mb-2">Täna</h2>
+        <div class="space-y-2 mb-4">
             {% for e in expenses %}
-            <div class="bg-gray-800 rounded-lg p-3 flex justify-between items-center">
+            <div class="bg-gray-800 rounded-lg p-3 flex justify-between items-center border border-gray-700">
                 <div>
-                    <p class="font-medium">{{ e.coffee_type or e.item }}</p>
-                    {% if e.location %}<p class="text-gray-400 text-xs">📍 {{ e.location }}{% if e.country %} ({{ e.country }}){% endif %}</p>{% endif %}
-                    {% if e.notes %}<p class="text-gray-400 text-sm">{{ e.notes }}</p>{% endif %}
+                    <p class="font-medium text-sm">{{ e.coffee_type or e.item }}</p>
+                    <p class="text-gray-500 text-xs">
+                        {% if e.location %}📍 {{ e.location }}{% if e.country %} ({{ e.country }}){% endif %} · {% endif %}
+                        {{ e.date }}
+                    </p>
+                    {% if e.notes %}<p class="text-gray-400 text-xs">{{ e.notes }}</p>{% endif %}
                 </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-emerald-400 font-semibold">{{ "%.2f"|format(e.amount) }} {{ e.currency }}</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-400 font-semibold text-sm">{{ "%.2f"|format(e.amount) }} {{ e.currency }}</span>
                     <form method="post" action="/delete/{{ e.id }}">
-                        <button type="submit" class="text-gray-500 hover:text-red-400 transition">✕</button>
+                        <button type="submit" class="text-gray-600 hover:text-red-400 transition text-sm">✕</button>
                     </form>
                 </div>
             </div>
             {% endfor %}
         </div>
-        {% else %}
-        <p class="text-gray-500 text-center mb-6">Täna pole veel kohvi juuaud.</p>
         {% endif %}
 
-        <!-- Summary -->
-        {% if summary %}
-        <h2 class="text-lg font-semibold mb-3">Viimased päevad</h2>
-        <div class="space-y-2">
-            {% for s in summary %}
-            <div class="bg-gray-800 rounded-lg p-3 flex justify-between">
-                <span class="text-gray-300">{{ s.date }}</span>
-                <span class="text-emerald-400 font-semibold">{{ "%.2f"|format(s.total) }} {{ s.currency }} ({{ s.count }}x)</span>
+        <!-- History -->
+        {% if all_expenses %}
+        <h2 class="text-sm font-semibold text-gray-400 mb-2">Viimased</h2>
+        <div class="space-y-2 mb-4">
+            {% for e in all_expenses %}
+            <div class="bg-gray-800/50 rounded-lg p-2.5 flex justify-between items-center border border-gray-700/50">
+                <div>
+                    <p class="text-sm">{{ e.coffee_type or e.item }}</p>
+                    <p class="text-gray-500 text-xs">
+                        {% if e.location %}📍 {{ e.location }} · {% endif %}
+                        {{ e.date }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-400 font-semibold text-sm">{{ "%.2f"|format(e.amount) }} {{ e.currency }}</span>
+                    <form method="post" action="/delete/{{ e.id }}">
+                        <button type="submit" class="text-gray-600 hover:text-red-400 transition text-xs">✕</button>
+                    </form>
+                </div>
             </div>
             {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not expenses and not all_expenses %}
+        <div class="text-center py-8">
+            <p class="text-4xl mb-3">☕</p>
+            <p class="text-gray-500">Veel pole kohvi juuaud.</p>
+            <p class="text-gray-600 text-sm">Lisa esimene kohv ülalt!</p>
         </div>
         {% endif %}
     </div>
@@ -123,8 +168,8 @@
     <nav class="bottom-nav">
         <div style="display:flex;justify-content:space-around;align-items:stretch;height:56px;">
             <a href="/" class="flex-1 active">
-                <span class="icon">➕</span>
-                <span>Lisa</span>
+                <span class="icon">☕</span>
+                <span>Pealeht</span>
             </a>
             <a href="/map" class="flex-1">
                 <span class="icon">🗺️</span>
@@ -137,8 +182,13 @@
         </div>
     </nav>
 
-    <!-- Geocoding -->
     <script>
+    // Haptic feedback
+    document.querySelector('form[action="/add"]').addEventListener('submit', function() {
+        if (navigator.vibrate) navigator.vibrate(15);
+    });
+
+    // Geocoding
     const locationInput = document.querySelector('input[name="location"]');
     const latInput = document.getElementById('latitude');
     const lonInput = document.getElementById('longitude');
@@ -161,12 +211,8 @@
                 .catch(() => {});
         }, 500);
     });
-    </script>
-    <script>
-    // Haptic feedback on add
-    document.querySelector('form[action="/add"]').addEventListener('submit', function() {
-        if (navigator.vibrate) navigator.vibrate(15);
-    });
+
+    // Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }

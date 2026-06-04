@@ -130,10 +130,24 @@ async def index(request: Request):
     expenses = get_expenses(date=today)
     totals = get_today_total()
     summary = get_daily_summary()
+
+    # All expenses for history (last 30)
+    all_expenses = get_expenses(limit=30)
+
+    # Quick stats
+    from app.database import get_db as _db
+    conn = _db()
+    total_drinks = conn.execute("SELECT COUNT(*) as cnt FROM expenses").fetchone()["cnt"]
+    unique_countries = conn.execute("SELECT COUNT(DISTINCT country) as cnt FROM expenses WHERE country != ''").fetchone()["cnt"]
+    conn.close()
+
     return templates.TemplateResponse(request, "index.html", {
         "expenses": expenses,
+        "all_expenses": all_expenses,
         "totals": totals,
         "summary": summary,
+        "total_drinks": total_drinks,
+        "unique_countries": unique_countries,
         "coffee_types": COFFEE_TYPES,
         "currencies": CURRENCIES,
         "countries": COUNTRY_SUGGESTIONS,
