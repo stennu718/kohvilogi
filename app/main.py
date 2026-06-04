@@ -209,6 +209,41 @@ async def manifest():
     }
 
 
+@app.get("/sw.js", response_class=HTMLResponse)
+async def service_worker():
+    js = """
+const CACHE = 'kohvilogi-v1';
+const ASSETS = ['/', '/map', '/stats', '/manifest.json'];
+
+self.addEventListener('install', e => {
+    e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+    e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
+    self.clients.claim();
+});
+
+self.addEventListener('fetch', e => {
+    if (e.request.method !== 'GET') return;
+    e.respondWith(
+        caches.match(e.request).then(cached => {
+            const fetched = fetch(e.request).then(response => {
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(CACHE).then(c => c.put(e.request, clone));
+                }
+                return response;
+            }).catch(() => cached);
+            return cached || fetched;
+        })
+    );
+});
+"""
+    return HTMLResponse(content=js, media_type="application/javascript")
+
+
 # Coffee growing regions (approximate centroids for major regions)
 COFFEE_REGIONS = [
     # Africa

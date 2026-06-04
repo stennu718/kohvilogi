@@ -95,10 +95,7 @@
         }
 
         /* Country list sheet */
-        .sheet-overlay {
-            display: none; position: fixed; inset: 0; z-index: 900;
-            background: rgba(0,0,0,0.5);
-        }
+        .sheet-overlay { display: none; position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,0.5); }
         .sheet-overlay.open { display: block; }
         .sheet {
             position: fixed; bottom: 60px; left: 0; right: 0; z-index: 901;
@@ -107,10 +104,34 @@
             transform: translateY(100%); transition: transform 0.25s ease-out;
         }
         .sheet.open { transform: translateY(0); }
-        .sheet-handle {
-            width: 36px; height: 4px; background: #4b5563; border-radius: 2px;
-            margin: 8px auto;
+        .sheet-handle { width: 36px; height: 4px; background: #4b5563; border-radius: 2px; margin: 8px auto; }
+
+        /* Add coffee modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.6); align-items: flex-end; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #1f2937; border-top: 1px solid #374151;
+            border-radius: 16px 16px 0 0; width: 100%; max-width: 480px;
+            padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            max-height: 80vh; overflow-y: auto;
         }
+        .modal-handle { width: 36px; height: 4px; background: #4b5563; border-radius: 2px; margin: 0 auto 12px; }
+        .modal select, .modal input {
+            background: #374151; border: 1px solid #4b5563; color: #e5e7eb;
+            border-radius: 8px; padding: 10px 12px; font-size: 14px; width: 100%;
+        }
+        .modal select:focus, .modal input:focus { outline: none; border-color: #34d399; }
+        .modal label { color: #9ca3af; font-size: 11px; display: block; margin-bottom: 4px; margin-top: 10px; }
+        .modal .btn-primary {
+            background: #059669; color: white; border: none; border-radius: 8px;
+            padding: 12px; font-weight: 600; font-size: 14px; width: 100%; margin-top: 14px;
+        }
+        .modal .btn-primary:active { background: #047857; }
+        .modal .btn-cancel {
+            background: transparent; color: #6b7280; border: none;
+            padding: 10px; font-size: 13px; width: 100%; margin-top: 4px;
+        }
+        .modal .loc-hint { color: #6b7280; font-size: 11px; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -141,6 +162,56 @@
         </div>
     </div>
 
+    <!-- Add coffee modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <h3 class="text-base font-bold text-emerald-400 mb-1">☕ Lisa kohv siia</h3>
+            <p class="text-gray-500 text-xs mb-2" id="modal-coords"></p>
+            <form id="add-form" method="post" action="/add">
+                <label>Kohvi tüüp</label>
+                <select name="coffee_type" required>
+                    <option value="" disabled selected>Vali tüüp</option>
+                    <option>Espresso</option><option>Americano</option><option>Cappuccino</option>
+                    <option>Latte</option><option>Flat White</option><option>Macchiato</option>
+                    <option>Mocha</option><option>Ristretto</option><option>Lungo</option>
+                    <option>Cold Brew</option><option>Filterkohv</option><option>Muu</option>
+                </select>
+                <div style="display:flex;gap:8px;">
+                    <div style="flex:2">
+                        <label>Summa</label>
+                        <input type="text" name="amount" placeholder="3.50" required pattern="[0-9]+([,.][0-9]+)?">
+                    </div>
+                    <div style="flex:1">
+                        <label>Valuuta</label>
+                        <select name="currency">
+                            <option value="EUR" selected>EUR</option>
+                            <option value="USD">USD</option>
+                            <option value="GBP">GBP</option>
+                            <option value="SEK">SEK</option>
+                            <option value="NOK">NOK</option>
+                            <option value="DKK">DKK</option>
+                            <option value="CHF">CHF</option>
+                            <option value="JPY">JPY</option>
+                            <option value="AUD">AUD</option>
+                            <option value="CAD">CAD</option>
+                        </select>
+                    </div>
+                </div>
+                <label>Asukoht</label>
+                <input type="text" name="location" placeholder="Linn, koht" id="modal-location">
+                <label>Riik</label>
+                <input type="text" name="country" placeholder="EE" maxlength="2" class="uppercase" id="modal-country">
+                <input type="hidden" name="latitude" id="modal-lat" value="0">
+                <input type="hidden" name="longitude" id="modal-lon" value="0">
+                <label>Märkmed</label>
+                <input type="text" name="notes" placeholder="Valikuline">
+                <button type="submit" class="btn-primary">Lisa ☕</button>
+                <button type="button" class="btn-cancel" onclick="closeModal()">Tühista</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Bottom navigation -->
     <nav class="bottom-nav">
         <div style="display:flex;justify-content:space-around;align-items:stretch;height:56px;">
@@ -164,16 +235,15 @@
     </nav>
 
     <script>
-    const map = L.map('map', {
-        zoomControl: false,
-        attributionControl: true
-    }).setView([20, 0], 2);
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
 
+    const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([20, 0], 2);
     L.control.zoom({ position: 'topright' }).addTo(map);
-
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OSM &copy; CARTO',
-        subdomains: 'abcd', maxZoom: 19
+        attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
     }).addTo(map);
 
     // Layer groups
@@ -198,6 +268,50 @@
         document.getElementById('sheet-overlay').classList.remove('open');
     }
 
+    // Modal
+    let clickLat = 0, clickLon = 0;
+    function openModal(lat, lon) {
+        clickLat = lat; clickLon = lon;
+        document.getElementById('modal-lat').value = lat.toFixed(6);
+        document.getElementById('modal-lon').value = lon.toFixed(6);
+        document.getElementById('modal-coords').textContent = lat.toFixed(4) + ', ' + lon.toFixed(4);
+        document.getElementById('modal-location').value = '';
+        document.getElementById('modal-country').value = '';
+        document.getElementById('modal-overlay').classList.add('open');
+        setTimeout(() => document.getElementById('modal-location').focus(), 100);
+    }
+    function closeModal(e) {
+        if (!e || e.target === document.getElementById('modal-overlay') || e.target.classList.contains('btn-cancel')) {
+            document.getElementById('modal-overlay').classList.remove('open');
+        }
+    }
+
+    // Reverse geocode on location input
+    document.getElementById('modal-location').addEventListener('change', function() {
+        const loc = this.value.trim();
+        if (!loc) return;
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&limit=1`, {
+            headers: { 'User-Agent': 'Kohvilogi/1.0' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data[0]) {
+                document.getElementById('modal-lat').value = data[0].lat;
+                document.getElementById('modal-lon').value = data[0].lon;
+                // Try to extract country code
+                if (data[0].address && data[0].address.country_code) {
+                    document.getElementById('modal-country').value = data[0].address.country_code.toUpperCase();
+                }
+            }
+        })
+        .catch(() => {});
+    });
+
+    // Map click → add coffee
+    map.on('click', function(e) {
+        openModal(e.latlng.lat, e.latlng.lng);
+    });
+
     // Region icon
     function regionIcon() {
         return L.divIcon({
@@ -216,7 +330,6 @@
             const allMarkers = [];
             const uniqueLocations = new Set();
 
-            // Coffee markers
             if (data.coordinates) {
                 data.coordinates.forEach(c => {
                     if (c.latitude && c.longitude) {
@@ -236,7 +349,6 @@
             }
             document.getElementById('stat-locations').textContent = uniqueLocations.size;
 
-            // Growing regions
             if (data.regions) {
                 data.regions.forEach(r => {
                     L.marker([r.lat, r.lon], { icon: regionIcon() })
@@ -249,7 +361,6 @@
                 });
             }
 
-            // Routes
             if (data.coordinates && data.coordinates.length > 1) {
                 const sorted = [...data.coordinates]
                     .filter(c => c.latitude && c.longitude)
@@ -266,12 +377,10 @@
                 }
             }
 
-            // Fit to markers
             if (allMarkers.length > 0) {
                 map.fitBounds(L.latLngBounds(allMarkers).pad(0.15));
             }
 
-            // Country list in sheet
             const listEl = document.getElementById('country-list');
             if (data.countries && data.countries.length > 0) {
                 data.countries.sort((a, b) => b.drink_count - a.drink_count);
@@ -282,7 +391,7 @@
                     listEl.appendChild(d);
                 });
             } else {
-                listEl.innerHTML = '<p class="text-gray-500 text-center py-4">Veel pole kohvi maailmas juuaud.<br><span style="font-size:12px">Lisa kohv koos asukohaga!</span></p>';
+                listEl.innerHTML = '<p class="text-gray-500 text-center py-4">Veel pole kohvi maailmas juuaud.<br><span style="font-size:12px">Kliki kaardil või lisa kohv!</span></p>';
             }
         })
         .catch(err => console.error('Failed:', err));
@@ -291,7 +400,7 @@
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function() {
         const d = L.DomUtil.create('div', 'legend-box');
-        d.innerHTML = '<div><span class="dot" style="background:#34d399"></span>Kohvikoht</div><div><span class="dot" style="background:#22c55e;opacity:0.5"></span>Viinapõld</div><div><span class="dot" style="background:#34d399;opacity:0.35"></span>Reisirada</div>';
+        d.innerHTML = '<div><span class="dot" style="background:#34d399"></span>Kohvikoht</div><div><span class="dot" style="background:#22c55e;opacity:0.5"></span>Viinapõld</div><div style="color:#6b7280;font-size:9px;margin-top:4px">👆 Kliki kaardil lisamiseks</div>';
         return d;
     };
     legend.addTo(map);

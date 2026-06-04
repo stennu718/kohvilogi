@@ -94,6 +94,11 @@
         <p class="text-gray-500 text-center mt-8">Sellel kuul pole veel kohvi logitud.</p>
         {% endif %}
     </div>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+    </script>
 
     <!-- Bottom navigation -->
     <nav class="bottom-nav">
