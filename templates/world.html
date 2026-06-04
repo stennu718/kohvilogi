@@ -557,7 +557,7 @@
             const data = await r.json();
             const picker = document.getElementById('year-picker');
             // Keep "Kõik" option, add years
-            picker.innerHTML = '<div class="year-opt sel" onclick="setYear(\'all\')">Kõik</div>';
+            picker.innerHTML = '<div class="year-opt sel" onclick="setYear(' + "'" + 'all' + "'" + ')">Kõik</div>';
             Object.keys(data).sort().reverse().forEach(y => {
                 const total = data[y].total;
                 picker.innerHTML += `<div class="year-opt" onclick="setYear('${y}')">${y} <span style="color:#6b7280">(${total})</span></div>`;
