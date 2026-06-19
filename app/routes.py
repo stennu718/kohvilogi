@@ -1,0 +1,271 @@
+"""Kohvilogi API endpoint'id — tegevused (lisamine, kustutamine, statistika)."""
+
+from fastapi import Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from datetime import datetime, date, timedelta
+from app.database import (
+    get_db, add_expense, get_expenses, get_today_total,
+    get_daily_summary, delete_expense, get_monthly_stats,
+    get_world_stats,
+)
+from app.constants import COFFEE_TYPES, CURRENCIES, COUNTRY_SUGGESTIONS, COUNTRY_INFO, COFFEE_REGIONS
+
+
+def register_routes(app, templates):
+    """Registreeri kõik endpoint'id FastAPI app'ile."""
+
+    @app.get("/", response_class=HTMLResponse)
+    async def index(request: Request):
+        today = datetime.now().strftime("%Y-%m-%d")
+        expenses = get_expenses(date=today)
+        totals = get_today_total()
+        summary = get_daily_summary()
+        all_expenses = get_expenses(limit=30)
+
+        conn = get_db()
+        total_drinks = conn.execute("SELECT COUNT(*) as cnt FROM expenses").fetchone()["cnt"]
+        unique_countries = conn.execute("SELECT COUNT(DISTINCT country) as cnt FROM expenses WHERE country != ''").fetchone()["cnt"]
+        conn.close()
+
+        return templates.TemplateResponse(request, "index.html", {
+            "expenses": expenses,
+            "all_expenses": all_expenses,
+            "totals": totals,
+            "summary": summary,
+            "total_drinks": total_drinks,
+            "unique_countries": unique_countries,
+            "coffee_types": COFFEE_TYPES,
+            "currencies": CURRENCIES,
+            "countries": COUNTRY_SUGGESTIONS,
+        })
+
+    @app.post("/add")
+    async def add(
+        coffee_type: str = Form(...),
+        amount: str = Form(...),
+        currency: str = Form("EUR"),
+        notes: str = Form(""),
+        location: str = Form(""),
+        country: str = Form(""),
+        latitude: str = Form("0"),
+        longitude: str = Form("0"),
+    ):
+        try:
+            amt = float(amount.replace(",", "."))
+            lat = float(latitude) if latitude else 0
+            lon = float(longitude) if longitude else 0
+            add_expense(
+                item=coffee_type, coffee_type=coffee_type, amount=amt,
+                currency=currency.upper(), notes=notes,
+                location=location, country=country.upper(),
+                latitude=lat, longitude=lon,
+            )
+        except ValueError:
+            pass
+        return RedirectResponse(url="/", status_code=303)
+
+    @app.post("/delete/{expense_id}")
+    async def delete(expense_id: int):
+        delete_expense(expense_id)
+        return RedirectResponse(url="/", status_code=303)
+
+    @app.get("/stats", response_class=HTMLResponse)
+    async def stats(request: Request, month: str | None = None):
+        if month is None:
+            month = datetime.now().strftime("%Y-%m")
+        data = get_monthly_stats(month)
+        return templates.TemplateResponse(request, "stats.html", {
+            "month": month,
+            "data": data,
+            "coffee_types": COFFEE_TYPES,
+            "currencies": CURRENCIES,
+        })
+
+    @app.get("/map", response_class=HTMLResponse)
+    async def world(request: Request):
+        return templates.TemplateResponse(request, "world.html", {})
+
+    @app.get("/manifest.json")
+    async def manifest():
+        return {
+            "name": "Kohvilogi",
+            "short_name": "Kohvilogi",
+            "description": "Kohvilogi — jälgige kohvi maailmas",
+            "start_url": "/",
+            "display": "standalone",
+            "background_color": "#111827",
+            "theme_color": "#065f46",
+            "orientation": "portrait-primary",
+            "icons": [
+                {"src": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/2615.svg", "sizes": "any", "type": "image/svg+xml"}
+            ],
+            "categories": ["food", "lifestyle"],
+            "lang": "et",
+        }
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok", "app": "kohvilogi", "version": "0.2.0"}
+
+    @app.get("/api/stats")
+    async def api_stats():
+        """Quick stats for the dashboard: streak, totals, progress."""
+        conn = get_db()
+
+        # Streak: consecutive days with at least one coffee
+        streak = 0
+        check_date = date.today()
+        while True:
+            rows = conn.execute(
+                "SELECT COUNT(*) as cnt FROM expenses WHERE date = ?",
+                (check_date.strftime("%Y-%m-%d"),)
+            ).fetchone()
+            if rows and rows["cnt"] > 0:
+                streak += 1
+                check_date -= timedelta(days=1)
+            else:
+                break
+
+        total = conn.execute("SELECT COUNT(*) as cnt FROM expenses").fetchone()["cnt"]
+        countries = conn.execute(
+            "SELECT COUNT(DISTINCT country) as cnt FROM expenses WHERE country != ''"
+        ).fetchone()["cnt"]
+        first = conn.execute("SELECT MIN(date) as d FROM expenses").fetchone()["d"]
+        days_since = None
+        if first:
+            days_since = (date.today() - date.fromisoformat(first)).days + 1
+
+        week_start = (date.today() - timedelta(days=date.today().weekday())).strftime("%Y-%m-%d")
+        week_drinks = conn.execute(
+            "SELECT COUNT(*) as cnt FROM expenses WHERE date >= ?", (week_start,)
+        ).fetchone()["cnt"]
+
+        conn.close()
+
+        return {
+            "streak": streak,
+            "total_drinks": total,
+            "unique_countries": countries,
+            "days_since_first": days_since,
+            "week_drinks": week_drinks,
+            "world_progress": round(countries / 195 * 100, 1) if countries else 0,
+        }
+
+    @app.get("/sw.js", response_class=HTMLResponse)
+    async def service_worker():
+        js = """
+const CACHE = 'kohvilogi-v1';
+const ASSETS = ['/', '/map', '/stats', '/manifest.json'];
+
+self.addEventListener('install', e => {
+    e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+    e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
+    self.clients.claim();
+});
+
+self.addEventListener('fetch', e => {
+    if (e.request.method !== 'GET') return;
+    e.respondWith(
+        caches.match(e.request).then(cached => {
+            const fetched = fetch(e.request).then(response => {
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(CACHE).then(c => c.put(e.request, clone));
+                }
+                return response;
+            }).catch(() => cached);
+            return cached || fetched;
+        })
+    );
+});"""
+        return HTMLResponse(content=js, media_type="application/javascript")
+
+    @app.get("/api/world")
+    async def api_world():
+        """JSON API for coffee map data."""
+        data = get_world_stats()
+        for c in data["countries"]:
+            info = COUNTRY_INFO.get(c["country"], {})
+            c["flag"] = info.get("flag", "🏳️")
+            c["country_name"] = info.get("name", c["country"])
+        for p in data["passport"]:
+            info = COUNTRY_INFO.get(p["country"], {})
+            p["flag"] = info.get("flag", "🏳️")
+            p["country_name"] = info.get("name", p["country"])
+        data["regions"] = COFFEE_REGIONS
+        return data
+
+    @app.get("/api/world/top3")
+    async def api_world_top3():
+        """Top 3 coffee types per country."""
+        conn = get_db()
+        rows = conn.execute("""
+            SELECT country, coffee_type, COUNT(*) as cnt
+            FROM expenses
+            WHERE country != '' AND coffee_type != ''
+            GROUP BY country, coffee_type
+            ORDER BY country, cnt DESC
+        """).fetchall()
+        conn.close()
+
+        result = {}
+        for r in rows:
+            cc = r["country"]
+            if cc not in result:
+                result[cc] = []
+            if len(result[cc]) < 3:
+                result[cc].append({"type": r["coffee_type"], "count": r["cnt"]})
+
+        for cc in result:
+            info = COUNTRY_INFO.get(cc, {})
+            result[cc] = {
+                "coffees": result[cc],
+                "flag": info.get("flag", "🏳️"),
+                "country_name": info.get("name", cc),
+            }
+
+        return result
+
+    @app.get("/api/world/by-year")
+    async def api_world_by_year():
+        """Coffee counts by year and country."""
+        conn = get_db()
+        rows = conn.execute("""
+            SELECT strftime('%Y', date) as year, country, COUNT(*) as cnt
+            FROM expenses
+            WHERE country != ''
+            GROUP BY year, country
+            ORDER BY year, cnt DESC
+        """).fetchall()
+        conn.close()
+
+        result = {}
+        for r in rows:
+            y = r["year"]
+            if y not in result:
+                result[y] = {"countries": [], "total": 0}
+            result[y]["countries"].append({
+                "country": r["country"],
+                "count": r["cnt"],
+                **COUNTRY_INFO.get(r["country"], {"flag": "🏳️", "name": r["country"]}),
+            })
+            result[y]["total"] += r["cnt"]
+
+        return result
+
+    @app.get("/api/share")
+    async def api_share():
+        """Shareable summary for QR code / link."""
+        stats = await api_stats()
+        import json
+        from base64 import b64encode
+        payload = b64encode(json.dumps(stats).encode()).decode()
+        return {
+            **stats,
+            "share_url": f"/share/{payload}",
+            "text": f"☕ Kohvilogi: {stats['total_drinks']} kohvi, {stats['unique_countries']} riiki, {stats['streak']} päeva streak!",
+        }
