@@ -8,3 +8,11 @@ build/
 data/
 *.db
 kohvilogi.db
+
+# Coverage
+.coverage
+htmlcov/
+
+# Python (additional)
+venv/
+.pytest_cache/
