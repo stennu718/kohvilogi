@@ -1,11 +1,8 @@
 # Kohvilogi
 
-[![CI](https://github.com/stennu718/kohvilogi/actions/workflows/tests.yml/badge.svg)](https://github.com/stennu718/kohvilogi/actions/workflows/tests.yml)
-[![Docker](https://github.com/stennu718/kohvilogi/actions/workflows/docker.yml/badge.svg)](https://github.com/stennu718/kohvilogi/actions/workflows/docker.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-![Dashboard](docs/screenshot-dashboard.png)
-![Map](docs/screenshot-map.png)
+[![CI](https://github.com/stennu718/kohvilogi/actions/workflows/ci.yml/badge.svg)](https://github.com/stennu718/kohvilogi/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
 ## Description
 
@@ -19,6 +16,12 @@
 - **Coffee Passport** — Track which countries' coffee you've tried
 - **Progressive Web App (PWA)** — Installable on mobile devices, works offline
 - **QR Code Sharing** — Generate a QR code with a summary of your coffee journey to share with friends
+
+## Screenshots
+
+| Dashboard | Map | Stats |
+|-----------|-----|-------|
+| ![Dashboard](docs/screenshot-dashboard.png) | ![Map](docs/screenshot-map.png) | ![Stats](docs/screenshot-stats.png) |
 
 ## Quick Start
 
@@ -104,6 +107,10 @@ kohvilogi/
 ├── requirements.txt
 └── railway.toml
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
