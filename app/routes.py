@@ -66,10 +66,11 @@ def register_routes(app, templates):
             return JSONResponse({"error": "Invalid CSRF token"}, status_code=403)
 
         # Input validation
-        if coffee_type.lower() not in VALID_COFFEE_TYPES:
-            return JSONResponse({"error": f"Invalid coffee type. Valid: {VALID_COFFEE_TYPES}"}, status_code=400)
-        if country.lower() not in VALID_COUNTRIES:
-            return JSONResponse({"error": f"Invalid country. Valid: {VALID_COUNTRIES}"}, status_code=400)
+        if coffee_type.lower().strip() not in VALID_COFFEE_TYPES:
+            return RedirectResponse(url=f"/?error=Invalid coffee type: {coffee_type}", status_code=303)
+        country_stripped = country.strip().upper() if country else ""
+        if country_stripped and country_stripped not in VALID_COUNTRIES:
+            return RedirectResponse(url=f"/?error=Invalid country code: {country}", status_code=303)
 
         try:
             amt = float(amount.replace(",", "."))
@@ -81,13 +82,21 @@ def register_routes(app, templates):
                 location=location, country=country.upper(),
                 latitude=lat, longitude=lon,
             )
-        except ValueError:
-            pass
+        except (ValueError, AttributeError):
+            return RedirectResponse(url="/?error=Invalid amount format", status_code=303)
         return RedirectResponse(url="/", status_code=303)
 
     @app.post("/delete/{expense_id}")
     async def delete(expense_id: int):
-        delete_expense(expense_id)
+        # Check existence first
+        conn = get_db()
+        existing = conn.execute("SELECT id FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+        if not existing:
+            conn.close()
+            return JSONResponse({"error": "Expense not found"}, status_code=404)
+        conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+        conn.commit()
+        conn.close()
         return RedirectResponse(url="/", status_code=303)
 
     @app.get("/stats", response_class=HTMLResponse)
