@@ -1,7 +1,8 @@
 """Kohvilogi API endpoint'id — tegevused (lisamine, kustutamine, statistika)."""
 
+from secrets import token_urlsafe
 from fastapi import Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from datetime import datetime, date, timedelta
 from app.database import (
     get_db, add_expense, get_expenses, get_today_total,
@@ -10,12 +11,19 @@ from app.database import (
 )
 from app.constants import COFFEE_TYPES, CURRENCIES, COUNTRY_SUGGESTIONS, COUNTRY_INFO, COFFEE_REGIONS
 
+VALID_COFFEE_TYPES = {"espresso", "americano", "cappuccino", "latte", "flat white",
+                      "macchiato", "mocha", "ristretto", "lungo", "cold brew",
+                      "filterkohv", "muu"}
+VALID_COUNTRIES = set(COUNTRY_INFO.keys())
+
 
 def register_routes(app, templates):
     """Registreeri kõik endpoint'id FastAPI app'ile."""
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request):
+        if "csrf_token" not in request.session:
+            request.session["csrf_token"] = token_urlsafe(32)
         today = datetime.now().strftime("%Y-%m-%d")
         expenses = get_expenses(date=today)
         totals = get_today_total()
@@ -37,10 +45,12 @@ def register_routes(app, templates):
             "coffee_types": COFFEE_TYPES,
             "currencies": CURRENCIES,
             "countries": COUNTRY_SUGGESTIONS,
+            "csrf_token": request.session["csrf_token"],
         })
 
     @app.post("/add")
     async def add(
+        request: Request,
         coffee_type: str = Form(...),
         amount: str = Form(...),
         currency: str = Form("EUR"),
@@ -50,6 +60,17 @@ def register_routes(app, templates):
         latitude: str = Form("0"),
         longitude: str = Form("0"),
     ):
+        # CSRF validation
+        form = await request.form()
+        if form.get("csrf_token") != request.session.get("csrf_token"):
+            return JSONResponse({"error": "Invalid CSRF token"}, status_code=403)
+
+        # Input validation
+        if coffee_type.lower() not in VALID_COFFEE_TYPES:
+            return JSONResponse({"error": f"Invalid coffee type. Valid: {VALID_COFFEE_TYPES}"}, status_code=400)
+        if country.lower() not in VALID_COUNTRIES:
+            return JSONResponse({"error": f"Invalid country. Valid: {VALID_COUNTRIES}"}, status_code=400)
+
         try:
             amt = float(amount.replace(",", "."))
             lat = float(latitude) if latitude else 0
