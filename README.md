@@ -8,12 +8,12 @@
 
 ## Features
 
-- **Coffee logging** — record coffee type, location, time, and notes
-- **World map** — visualize coffee consumption on an interactive map
-- **Statistics** — daily/weekly/monthly consumption analytics
-- **PWA support** — installable as a mobile app
-- **QR sharing** — share your coffee profile via QR code
-- **Journal** — personal notes and reflections
+- **Coffee logging** — record coffee type, amount, location, country, GPS coordinates
+- **Statistics** — daily, weekly, monthly consumption analytics, streak tracking
+- **World map** — interactive map with coffee regions (27 regions)
+- **Coffee passport** — track which countries you've had coffee in
+- **PWA support** — installable, offline-capable
+- **Sharing** — QR code summary sharing
 
 ## Quick Start
 
@@ -29,24 +29,41 @@ pip install -r requirements.txt
 
 # Run
 uvicorn app.main:app --reload
+# Available at: http://localhost:8000
+# API docs: http://localhost:8000/docs
 ```
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Homepage |
+| `POST /add` | Add coffee entry |
+| `POST /delete/{id}` | Delete entry |
+| `GET /stats` | Monthly statistics |
+| `GET /map` | World map data |
+| `GET /api/streak` | Streak + quick stats |
+| `GET /api/world` | World data |
+| `GET /health` | Health check |
 
 ## Tech Stack
 
-- **Backend:** FastAPI, SQLAlchemy, SQLite
-- **Frontend:** Jinja2 templates, vanilla JS
-- **Map:** Leaflet.js
-- **Deploy:** Docker, Railway
+- **Backend:** FastAPI + SQLite
+- **Frontend:** Jinja2 templates, PWA
+- **Database:** SQLite (aiosqlite)
+- **Deploy:** Docker
+
+## Tests
+
+```bash
+pytest tests/ -v
+```
 
 ## Screenshots
 
 | Dashboard | Map | Stats |
 |-----------|-----|-------|
 | ![Dashboard](docs/screenshot-dashboard.png) | ![Map](docs/screenshot-map.png) | ![Stats](docs/screenshot-stats.png) |
-
-## API Documentation
-
-Interactive API docs available at `/docs` when running the server.
 
 ## Contributing
 
