@@ -10,6 +10,10 @@
 
 ![Coffee Map](docs/screenshot.png)
 
+## Demo
+
+![Demo](docs/demo.gif)
+
 ## Features
 
 - **Coffee logging** — record coffee type, amount, location, country, GPS coordinates
