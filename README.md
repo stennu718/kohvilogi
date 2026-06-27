@@ -18,6 +18,17 @@
 - **PWA support** — installable, offline-capable
 - **Sharing** — QR code summary sharing
 
+## API Documentation
+
+Interactive API docs available at `/docs` (Swagger UI) when running the server.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/add` | POST | Log a coffee entry |
+| `/list` | GET | List all entries |
+| `/stats` | GET | Consumption statistics |
+| `/map` | GET | Map visualization data |
+
 ## Quick Start
 
 ```bash
