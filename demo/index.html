@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kohvilogi — Interactive API Demo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; }
+.container { max-width: 900px; margin: 0 auto; }
+h1 { color: #f0c674; margin-bottom: 8px; font-size: 24px; }
+.subtitle { color: #8b949e; margin-bottom: 24px; font-size: 14px; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.card h3 { color: #58a6ff; font-size: 16px; margin-bottom: 12px; }
+.form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.form-row input, .form-row select { flex: 1; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+.form-row input:focus, .form-row select:focus { outline: none; border-color: #58a6ff; }
+button { background: #238636; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+button:hover { background: #2ea043; }
+button.secondary { background: #21262d; border: 1px solid #30363d; }
+button.secondary:hover { background: #30363d; }
+.response { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+.success { color: #3fb950; }
+.error { color: #f85149; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; text-align: center; }
+.stat-card .value { font-size: 28px; font-weight: bold; color: #f0c674; }
+.stat-card .label { font-size: 12px; color: #8b949e; margin-top: 4px; }
+.cup { font-size: 20px; margin: 0 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>☕ Kohvilogi — API Demo</h1>
+  <p class="subtitle">Interactive coffee logging API. Try the endpoints below!</p>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="value" id="totalEntries">0</div>
+      <div class="label">Total Entries</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="todayCups">0</div>
+      <div class="label">Today's Cups</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="streak">0</div>
+      <div class="label">Day Streak</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 20px;">
+    <h3>POST /api/v1/add — Log a coffee</h3>
+    <div class="form-row">
+      <input type="text" id="coffeeType" placeholder="Coffee type (e.g. Espresso)" value="Espresso">
+      <input type="text" id="location" placeholder="Location" value="Tallinn">
+      <select id="size">
+        <option value="small">Small</option>
+        <option value="medium" selected>Medium</option>
+        <option value="large">Large</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <input type="number" id="amount" placeholder="Amount (ml)" value="250">
+      <button onclick="addCoffee()">Add Entry</button>
+      <button class="secondary" onclick="autoDemo()">Auto Demo</button>
+    </div>
+    <div class="response" id="addResponse">// Response will appear here</div>
+  </div>
+
+  <div class="card">
+    <h3>GET /api/v1/stats — Get statistics</h3>
+    <button onclick="getStats()">Fetch Stats</button>
+    <div class="response" id="statsResponse">// Response will appear here</div>
+  </div>
+
+  <div class="card">
+    <h3>GET /api/v1/entries — List all entries</h3>
+    <button onclick="getEntries()">Fetch Entries</button>
+    <div class="response" id="entriesResponse">// Response will appear here</div>
+  </div>
+</div>
+
+<script>
+// Simulated backend (since we don't have a running server)
+const db = [];
+let totalCups = 0;
+
+function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+function addCoffee() {
+  const type = document.getElementById('coffeeType').value || 'Espresso';
+  const location = document.getElementById('location').value || 'Unknown';
+  const size = document.getElementById('size').value;
+  const amount = parseInt(document.getElementById('amount').value) || 250;
+  
+  const entry = {
+    id: generateId(),
+    type, location, size, amount,
+    timestamp: new Date().toISOString(),
+    country: guessCountry(location)
+  };
+  
+  db.push(entry);
+  totalCups++;
+  
+  const response = {
+    status: 'ok',
+    entry: entry,
+    total: db.length,
+    message: `Logged ${size} ${type} from ${location}`
+  };
+  
+  document.getElementById('addResponse').innerHTML = 
+    '<span class="success">✓ 201 Created</span>\n\n' + JSON.stringify(response, null, 2);
+  
+  updateStats();
+  animateCoffee();
+}
+
+function getStats() {
+  const types = {};
+  const locations = {};
+  db.forEach(e => {
+    types[e.type] = (types[e.type] || 0) + 1;
+    locations[e.location] = (locations[e.location] || 0) + 1;
+  });
+  
+  const response = {
+    status: 'ok',
+    total_entries: db.length,
+    today_cups: db.filter(e => {
+      const d = new Date(e.timestamp);
+      const today = new Date();
+      return d.toDateString() === today.toDateString();
+    }).length,
+    by_type: types,
+    by_location: locations,
+    avg_daily: (db.length / Math.max(1, getDayCount())).toFixed(1),
+    streak: calculateStreak()
+  };
+  
+  document.getElementById('statsResponse').innerHTML = 
+    '<span class="success">✓ 200 OK</span>\n\n' + JSON.stringify(response, null, 2);
+}
+
+function getEntries() {
+  const entries = db.slice(-10).reverse();
+  const response = {
+    status: 'ok',
+    count: entries.length,
+    entries: entries
+  };
+  
+  document.getElementById('entriesResponse').innerHTML = 
+    '<span class="success">✓ 200 OK</span>\n\n' + JSON.stringify(response, null, 2);
+}
+
+function updateStats() {
+  document.getElementById('totalEntries').textContent = db.length;
+  document.getElementById('todayCups').textContent = db.filter(e => {
+    const d = new Date(e.timestamp);
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+  }).length;
+  document.getElementById('streak').textContent = calculateStreak();
+}
+
+function calculateStreak() {
+  if (db.length === 0) return 0;
+  const days = new Set(db.map(e => new Date(e.timestamp).toDateString()));
+  return days.size;
+}
+
+function getDayCount() {
+  const days = new Set(db.map(e => new Date(e.timestamp).toDateString()));
+  return days.size;
+}
+
+function guessCountry(city) {
+  const map = { 'Tallinn': 'Estonia', 'Helsinki': 'Finland', 'Riga': 'Latvia', 'Stockholm': 'Sweden', 'Tartu': 'Estonia' };
+  return map[city] || 'Unknown';
+}
+
+function animateCoffee() {
+  const btn = document.querySelector('button[onclick="addCoffee()"]');
+  btn.textContent = '☕ Added!';
+  setTimeout(() => btn.textContent = 'Add Entry', 1000);
+}
+
+let demoInterval = null;
+function autoDemo() {
+  if (demoInterval) {
+    clearInterval(demoInterval);
+    demoInterval = null;
+    return;
+  }
+  
+  const demoData = [
+    { type: 'Espresso', location: 'Tallinn', size: 'small', amount: 60 },
+    { type: 'Latte', location: 'Helsinki', size: 'medium', amount: 350 },
+    { type: 'Americano', location: 'Tartu', size: 'large', amount: 500 },
+    { type: 'Cappuccino', location: 'Riga', size: 'medium', amount: 300 },
+    { type: 'Filter', location: 'Stockholm', size: 'medium', amount: 400 },
+  ];
+  
+  let i = 0;
+  demoInterval = setInterval(() => {
+    if (i < demoData.length) {
+      const d = demoData[i];
+      document.getElementById('coffeeType').value = d.type;
+      document.getElementById('location').value = d.location;
+      document.getElementById('size').value = d.size;
+      document.getElementById('amount').value = d.amount;
+      addCoffee();
+      i++;
+    } else {
+      clearInterval(demoInterval);
+      demoInterval = null;
+      getStats();
+    }
+  }, 800);
+}
+
+// Initial state
+document.getElementById('addResponse').textContent = '// Click "Add Entry" or "Auto Demo" to start';
+document.getElementById('statsResponse').textContent = '// Click "Fetch Stats" to see statistics';
+document.getElementById('entriesResponse').textContent = '// Click "Fetch Entries" to see entries';
+</script>
+</body>
+</html>
