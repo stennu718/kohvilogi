@@ -3,8 +3,12 @@
 Testib API endpointe koos andmebaasiga — terviklik süsteemi käitumine.
 """
 
+import os
 import pytest
 from tests.factories import make_coffee, make_expense_data
+
+# Ensure testing config is active
+os.environ.setdefault("ENV", "testing")
 
 
 class TestAddEndpoint:

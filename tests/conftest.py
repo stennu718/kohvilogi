@@ -10,13 +10,17 @@ from fastapi.testclient import TestClient
 def client():
     """Loo puhas test client igale testile — eraldi ajutine andmebaas."""
     old_db = os.environ.get("DB_PATH")
+    old_env = os.environ.get("ENV")
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
     os.environ["DB_PATH"] = db_path
+    os.environ["ENV"] = "testing"
 
     import importlib
     import app.database
+    import app.config
     importlib.reload(app.database)
+    importlib.reload(app.config)
     app.database.init_db()
 
     from app.main import app
@@ -30,6 +34,10 @@ def client():
         os.environ["DB_PATH"] = old_db
     else:
         os.environ.pop("DB_PATH", None)
+    if old_env:
+        os.environ["ENV"] = old_env
+    else:
+        os.environ.pop("ENV", None)
 
 
 @pytest.fixture

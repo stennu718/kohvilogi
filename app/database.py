@@ -45,6 +45,11 @@ def init_db():
             notes TEXT DEFAULT ''
         )
     """)
+    # Performance indexes for common queries
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_country ON expenses(country)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_coffee_type ON expenses(coffee_type)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date_country ON expenses(date, country)")
     conn.commit()
     conn.close()
 
@@ -68,7 +73,7 @@ def add_expense(item: str, amount: float, currency: str = "EUR", coffee_type: st
     return rowid
 
 
-def get_expenses(date: str = None, limit: int = 100) -> list:
+def get_expenses(date: str | None = None, limit: int = 100) -> list:
     conn = get_db()
     if date:
         rows = conn.execute(

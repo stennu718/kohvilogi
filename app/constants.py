@@ -1,5 +1,12 @@
 """Kohvilogi konstandid — kohvitüübid, valuutad, riigid, kohviregioonid."""
 
+# Lowercase set for validation
+VALID_COFFEE_TYPES = {
+    "espresso", "americano", "cappuccino", "latte", "flat white",
+    "macchiato", "mocha", "ristretto", "lungo", "cold brew",
+    "filterkohv", "muu",
+}
+
 COFFEE_TYPES = [
     "Espresso", "Americano", "Cappuccino", "Latte", "Flat White",
     "Macchiato", "Mocha", "Ristretto", "Lungo", "Cold Brew",
@@ -145,3 +152,6 @@ COFFEE_REGIONS = [
     {"name": "Blue Mountain", "country": "JM", "lat": 18.08, "lon": -76.6, "type": "Arabica", "desc": "Jamaica — kallis, eksklusiivne"},
     {"name": "Yauco", "country": "PR", "lat": 18.03, "lon": -66.85, "type": "Arabica", "desc": "Puerto Rico — premium"},
 ]
+
+# Derived sets for validation (placed after COUNTRY_INFO to capture all entries)
+VALID_COUNTRIES = set(COUNTRY_INFO.keys())

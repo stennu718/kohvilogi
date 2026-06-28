@@ -9,14 +9,18 @@ def client():
     """Create a fresh test client with a clean temp database for EACH test."""
     # Remove old DB_PATH so init_db() creates a fresh one
     old_db = os.environ.get("DB_PATH")
+    old_env = os.environ.get("ENV")
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
     os.environ["DB_PATH"] = db_path
+    os.environ["ENV"] = "testing"
 
     # Re-import to pick up new DB_PATH
     import importlib
     import app.database
+    import app.config
     importlib.reload(app.database)
+    importlib.reload(app.config)
     app.database.init_db()
 
     from app.main import app
@@ -30,6 +34,10 @@ def client():
         os.environ["DB_PATH"] = old_db
     else:
         os.environ.pop("DB_PATH", None)
+    if old_env:
+        os.environ["ENV"] = old_env
+    else:
+        os.environ.pop("ENV", None)
 
 
 class TestHealth:
@@ -221,3 +229,150 @@ class TestNewEndpoints:
         assert "share_url" in d
         assert "total_drinks" in d
         assert "☕" in d["text"]
+
+
+class TestAPIV1:
+    """Tests for the new v1 API namespace."""
+
+    def test_v1_info(self, client):
+        """API v1 root returns endpoint listing."""
+        r = client.get("/api/v1")
+        assert r.status_code == 200
+        d = r.json()
+        assert "version" in d
+        assert "endpoints" in d
+        assert "auth" in d
+
+    def test_v1_expenses_list(self, client):
+        """GET /api/v1/expenses lists expenses."""
+        client.post("/add", data={"coffee_type": "Espresso", "amount": "3.50"})
+        r = client.get("/api/v1/expenses")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["success"] is True
+        assert d["count"] == 1
+
+    def test_v1_expenses_create_json(self, client):
+        """POST /api/v1/expenses with JSON body creates a record."""
+        r = client.post("/api/v1/expenses", json={
+            "coffee_type": "Espresso",
+            "amount": 3.50,
+            "currency": "EUR",
+            "notes": "API test",
+            "country": "EE",
+        })
+        assert r.status_code == 201
+        d = r.json()
+        assert d["success"] is True
+        assert d["id"] > 0
+
+    def test_v1_expenses_create_invalid_type(self, client):
+        """POST /api/v1/expenses with invalid coffee type returns 400."""
+        r = client.post("/api/v1/expenses", json={
+            "coffee_type": "invalid-coffee",
+            "amount": 3.50,
+        })
+        assert r.status_code == 400
+
+    def test_v1_expenses_create_negative_amount(self, client):
+        """POST /api/v1/expenses with negative amount returns 400."""
+        r = client.post("/api/v1/expenses", json={
+            "coffee_type": "Espresso",
+            "amount": -5,
+        })
+        assert r.status_code == 400
+
+    def test_v1_stats(self, client):
+        """GET /api/v1/stats returns dashboard statistics."""
+        client.post("/add", data={"coffee_type": "Espresso", "amount": "3.50", "country": "EE"})
+        r = client.get("/api/v1/stats")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["total_drinks"] == 1
+        assert d["unique_countries"] == 1
+
+    def test_v1_world(self, client):
+        """GET /api/v1/world returns world data."""
+        r = client.get("/api/v1/world")
+        assert r.status_code == 200
+        d = r.json()
+        assert "regions" in d
+        assert "countries" in d
+
+    def test_v1_expenses_delete(self, client):
+        """POST /api/v1/expenses/{id} deletes an expense."""
+        client.post("/add", data={"coffee_type": "Espresso", "amount": "3.50"})
+        from app.database import get_expenses
+        expenses = get_expenses()
+        expense_id = expenses[0]["id"]
+        r = client.post(f"/api/v1/expenses/{expense_id}")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["success"] is True
+
+    def test_v1_expenses_delete_nonexistent(self, client):
+        """POST /api/v1/expenses/9999 returns 404."""
+        r = client.post("/api/v1/expenses/9999")
+        assert r.status_code == 404
+
+
+class TestAuthEndpoints:
+    """Tests for authentication endpoints."""
+
+    def test_register(self, client):
+        """POST /api/v1/auth/register creates a user."""
+        r = client.post("/api/v1/auth/register", data={
+            "username": "testuser",
+            "password": "testpass123",
+        })
+        assert r.status_code == 200
+        d = r.json()
+        assert d["success"] is True
+        assert "token" in d
+
+    def test_register_duplicate(self, client):
+        """Registering same username twice returns 409."""
+        client.post("/api/v1/auth/register", data={
+            "username": "testuser",
+            "password": "testpass123",
+        })
+        r = client.post("/api/v1/auth/register", data={
+            "username": "testuser",
+            "password": "testpass123",
+        })
+        assert r.status_code == 409
+
+    def test_login(self, client):
+        """POST /api/v1/auth/login returns a token."""
+        client.post("/api/v1/auth/register", data={
+            "username": "testuser",
+            "password": "testpass123",
+        })
+        r = client.post("/api/v1/auth/login", data={
+            "username": "testuser",
+            "password": "testpass123",
+        })
+        assert r.status_code == 200
+        d = r.json()
+        assert d["success"] is True
+        assert "token" in d
+
+    def test_login_wrong_password(self, client):
+        """Login with wrong password returns 401."""
+        client.post("/api/v1/auth/register", data={
+            "username": "testuser",
+            "password": "testpass123",
+        })
+        r = client.post("/api/v1/auth/login", data={
+            "username": "testuser",
+            "password": "wrongpass",
+        })
+        assert r.status_code == 401
+
+    def test_register_short_password(self, client):
+        """Register with too-short password returns 400."""
+        r = client.post("/api/v1/auth/register", data={
+            "username": "testuser",
+            "password": "short",
+        })
+        assert r.status_code == 400
