@@ -24,5 +24,28 @@ Log what you drink, where you are, and discover your coffee habits.
 ## Screenshot
 ![Coffee Map](docs/screenshot.png)
 
+## Technical Highlights
+
+- **Backend**: Python 3.11 + Flask + SQLAlchemy
+- **Auth**: JWT authentication with token blacklisting
+- **Rate limiting**: Per-endpoint limits with Redis fallback
+- **Testing**: 127 tests (unit, integration, e2e)
+- **Security**: CORS, input validation, bcrypt hashing
+- **Deployment**: Docker support, GitHub Actions CI/CD
+
+## Architecture
+
+```
+app/
+  routes.py       # API endpoints (auth, coffee, stats)
+  auth.py         # JWT authentication and user management
+  config.py       # App configuration (Dev/Test/Prod)
+  schemas.py      # Request/response validation
+  error_handlers.py # Global exception handling
+  logging_config.py # Structured logging
+  database.py     # Database connection and session management
+main.py           # App entry point, middleware setup
+```
+
 ## License
 MIT
