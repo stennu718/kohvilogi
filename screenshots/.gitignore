@@ -1,0 +1,6 @@
+# Ignore screenshot images (only README is tracked)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp

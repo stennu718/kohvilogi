@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "kohvilogi"
 version = "0.2.0"
-description = "Expense tracker web app - FastAPI + SQLite + Tailwind"
+description = "Coffee logging web app - track your coffee on a world map"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

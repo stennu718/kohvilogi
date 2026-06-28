@@ -94,6 +94,55 @@ pytest tests/ -v
 |-----------|-----|-------|
 | ![Dashboard](docs/screenshot-dashboard.png) | ![Map](docs/screenshot-map.png) | ![Stats](docs/screenshot-stats.png) |
 
+## Architecture
+
+```
+kohvilogi/
+├── app/
+│   ├── __init__.py      # App package init
+│   ├── main.py          # FastAPI application entry point
+│   ├── routes.py        # API & page route definitions
+│   ├── database.py      # SQLite async database layer (aiosqlite)
+│   └── constants.py     # Configuration constants
+├── templates/
+│   ├── index.html       # Main dashboard (log entries, quick stats)
+│   ├── stats.html       # Detailed consumption statistics
+│   └── world.html       # Interactive world map & coffee passport
+├── tests/
+│   ├── test_unit.py     # Unit tests
+│   ├── test_integration.py  # Integration tests
+│   ├── test_e2e.py      # End-to-end user journey tests
+│   ├── test_security.py # Security & input validation tests
+│   ├── conftest.py      # Pytest fixtures
+│   └── factories.py     # Test data factories
+├── docs/                # Screenshots & documentation
+├── scripts/             # CI test scripts
+├── .github/workflows/   # CI Actions (tests, Docker)
+├── Dockerfile           # Multi-stage Docker build
+├── docker-compose.yml   # Local Docker setup
+├── pyproject.toml       # Project config & dependencies
+├── requirements.txt     # Pinned dependencies
+└── railway.toml         # Railway deployment config
+```
+
+### Tech Stack
+
+- **Backend:** Python 3.11+ / FastAPI with async support
+- **Database:** SQLite via aiosqlite (async)
+- **Frontend:** Jinja2 server-side templates, Tailwind CSS, vanilla JS
+- **PWA:** Service worker, offline caching, installable web app
+- **Testing:** pytest + pytest-cov (99% coverage target), pytest-xdist for parallel execution
+- **CI/CD:** GitHub Actions (test pipeline + Docker build/push to GHCR)
+- **Deployment:** Docker, Railway, GHCR (`ghcr.io/stennu718/kohvilogi`)
+- **API Docs:** Auto-generated Swagger UI at `/docs`
+
+### Design Decisions
+
+- **Server-side rendering** over a SPA — keeps the app simple and lightweight
+- **SQLite** — single-file database perfect for single-user deployment, no external service needed
+- **Async throughout** — FastAPI + aiosqlite ensure non-blocking I/O
+- **PWA-first** — service worker caches all pages for offline use
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
